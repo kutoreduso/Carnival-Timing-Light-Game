@@ -10,10 +10,12 @@ const int ledPins[] = {2, 3, 4, 5, 6, 7, 8};  // 6 white LEDs + 1 green LED
 const int numLEDs = 7;
 int greenLEDIndex = 3;  // Green LED is at pin 4 (index 3 in array)
 
+// Buzzer pin
+const int buzzerPin = 11;  // Add the buzzer pin
+
 // Button pins
 const int startButtonPin = 9;
 const int scoreButtonPin = 10;
-const int buzzerPin = 11;  // Passive buzzer connected to pin 11
 
 // Variables
 int score = 0;
@@ -21,7 +23,7 @@ int highScore = 0;
 int currentLED = 0;  // Index of the currently lit LED
 bool gameStarted = false;
 unsigned long lastLEDUpdate = 0;  // For tracking LED timing
-unsigned long ledInterval = 200;
+unsigned long ledInterval = 100;
 bool scoreUpdated = false;
 
 unsigned long gameStartTime = 0;  // Time when the game starts
@@ -38,7 +40,7 @@ Bounce scoreButton = Bounce();
 // Function declarations (before they are called)
 void displayWelcomeScreen();
 void resetGame();
-void endGame();
+void playBuzzer(bool play);
 
 void setup() {
   // Set up LEDs
@@ -46,10 +48,12 @@ void setup() {
     pinMode(ledPins[i], OUTPUT);
   }
   
-  // Set up buttons and buzzer
+  // Set up buzzer pin
+  pinMode(buzzerPin, OUTPUT);
+
+  // Set up buttons
   pinMode(startButtonPin, INPUT_PULLUP);
   pinMode(scoreButtonPin, INPUT_PULLUP);
-  pinMode(buzzerPin, OUTPUT);
 
   // Initialize Bounce objects for buttons
   startButton.attach(startButtonPin);
@@ -117,24 +121,26 @@ void loop() {
     lcd.print(remainingTime);
   }
 
-  // Check if it's time to update the LEDs
   if (currentTime - lastLEDUpdate >= ledInterval && gameStarted) {
-    // Turn off the previous LED
-    digitalWrite(ledPins[currentLED], LOW);
-    noTone(buzzerPin);  // Turn off the buzzer when any LED other than green is lit
+    // Turn off all LEDs before lighting the next one
+    for (int i = 0; i < numLEDs; i++) {
+        digitalWrite(ledPins[i], LOW);
+    }
 
     // Move to the next LED in sequence
     currentLED++;
     if (currentLED >= numLEDs) {
-      currentLED = 0;  // Reset to the first LED if we reach the end
+        currentLED = 0;  // Reset to the first LED if we reach the end
     }
 
-    // Turn on the new LED
+    // Turn on the current LED
     digitalWrite(ledPins[currentLED], HIGH);
 
-    // If the green LED is lit, activate the buzzer
+    // Check if the current LED is the green LED
     if (currentLED == greenLEDIndex) {
-      tone(buzzerPin, 1000);  // Play a 1kHz tone when the green LED lights up
+      playBuzzer(true);  // Play sound if it's the green LED
+    } else {
+      playBuzzer(false);  // Stop sound for other LEDs
     }
 
     lastLEDUpdate = currentTime;
@@ -174,6 +180,7 @@ void endGame() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Game Over!");
+   noTone(buzzerPin);  // Add this line to stop any sound from the buzzer
 
   // Check if the player's score is a new high score
   if (score > highScore) {
@@ -195,7 +202,7 @@ void endGame() {
 void resetGame() {
   // Reset all variables
   score = 0;
-  ledInterval = 200;
+  ledInterval = 100;
   currentLED = 0;
   scoreUpdated = false;
   remainingTime = 30;  // Reset timer for the next game
@@ -225,4 +232,13 @@ void displayWelcomeScreen() {
   lcd.print(" Start");
 
   gameEnded = false;
+}
+
+// Function to play or stop the buzzer
+void playBuzzer(bool play) {
+  if (play) {
+    tone(buzzerPin, 1000);  // Play a 1000Hz tone
+  } else {
+    noTone(buzzerPin);  // Stop the tone
+  }
 }
